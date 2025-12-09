@@ -193,7 +193,7 @@ with col2:
 
 # -------------------------- GRAPH: Origin Country Performance --------------------------
 st.subheader("Which Countries Produce the Best Sellers?")
-origin_sales = data.groupby('origin')['Sales Volume'].sum().sort_values(ascending=False).reset_index()
+origin_sales = df.groupby('origin')['Sales Volume'].sum().sort_values(ascending=False).reset_index()
 fig4 = px.bar(origin_sales, x='origin', y='Sales Volume',
               color='origin', text='Sales Volume',
               title="Sales Volume by Country of Origin")
