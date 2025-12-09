@@ -191,6 +191,8 @@ with col2:
     st.plotly_chart(fig4, use_container_width=True)
 
 
+st.markdown("---") 
+
 # -------------------------- GRAPH: Origin Country Performance --------------------------
 st.subheader("Which Countries Produce the Best Sellers?")
 origin_sales = df.groupby('origin')['Sales Volume'].sum().sort_values(ascending=False).reset_index()
