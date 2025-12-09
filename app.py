@@ -190,6 +190,17 @@ with col2:
     fig4.update_layout(xaxis_title="Price ($)", yaxis_title="Units Sold")
     st.plotly_chart(fig4, use_container_width=True)
 
+
+# -------------------------- GRAPH: Origin Country Performance --------------------------
+st.subheader("Which Countries Produce the Best Sellers?")
+origin_sales = data.groupby('origin')['Sales Volume'].sum().sort_values(ascending=False).reset_index()
+fig4 = px.bar(origin_sales, x='origin', y='Sales Volume',
+              color='origin', text='Sales Volume',
+              title="Sales Volume by Country of Origin")
+fig4.update_traces(textposition='outside')
+st.plotly_chart(fig4, use_container_width=True)
+
+
 # -------------------------- Data Table & Export --------------------------
 st.markdown("---")
 st.subheader(f"Filtered Data Table ({len(filtered_df):,} rows)")
