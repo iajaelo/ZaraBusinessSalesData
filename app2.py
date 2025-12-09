@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-st.title("Zara Jackets: Seasonal, Material & Origin Performance")
+st.title("Zara Jackets Performance Dashboard")
 st.markdown("### Interactive analysis of Seasonal • Season • Material • Origin • Sales Volume")
 
 # -------------------------- Data Loading --------------------------

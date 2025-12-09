@@ -1,124 +1,133 @@
-# app.py
+# app.py - Zara Clothing Sales Dashboard (Works with Full Dataset)
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from io import StringIO
 
-# Page config
-st.set_page_config(page_title="Zara Sales Dashboard", layout="wide")
+# -------------------------- Page Setup --------------------------
+st.set_page_config(page_title="Zara Sales Dashboard", layout="wide", initial_sidebar_state="expanded")
 st.title("Zara Clothing Sales Dashboard")
 
-# Sidebar - Data input
-st.sidebar.header("Upload or Paste Data")
+# st.markdown("Upload your full `salesdata.csv` or any similar fashion sales dataset to explore insights interactively.")
 
-# Option to upload file
-uploaded_file = st.sidebar.file_uploader("Upload your CSV/TSV file", type=["csv", "tsv"])
 
-# Option to paste TSV data
-data_source = st.sidebar.radio(
-    "Or paste TSV data below:",
-    options=["Upload file", "Paste TSV data"]
-)
 
-df = None
-
-# Load data based on user choice
-if data_source == "Upload file" and uploaded_file is not None:
-    try:
-        # Auto-detect delimiter
-        df = pd.read_csv(uploaded_file, sep=None, engine='python')
-        st.success(f"File '{uploaded_file.name}' loaded successfully!")
-    except Exception as e:
-        st.error(f"Error reading file: {e}")
+# -------------------------- Data Loading --------------------------
+# Try to load the real dataset first (works locally + when deployed with the file)
+try:
+    # This works when salesdata.csv is in the same folder
+    df = pd.read_csv("./Business_sales_EDA.csv", sep=None, engine="python")
+    data_source = "./Business_sales_EDA.csv"
+except FileNotFoundError:
+    # Fallback: let user upload the file (useful when testing online without the CSV yet)
+    st.warning("salesdata.csv not found in project folder → please upload it below")
+    uploaded = st.file_uploader("./Business_sales_EDA.csv", type=["csv"])
+    if uploaded is not None:
+        df = pd.read_csv(uploaded, sep=None, engine="python")
+        data_source = "uploaded file"
+    else:
+        st.info("Waiting for salesdata.csv upload...")
         st.stop()
+else:
+    st.success(f"Loaded {len(df):,} rows from {data_source}")
 
-elif data_source == "Paste TSV data":
-    pasted = st.sidebar.text_area("Paste your TSV data here (tab-separated)", height=300)
-    if pasted.strip():
-        try:
-            df = pd.read_csv(StringIO(pasted), sep='\t')
-            st.success("Pasted data loaded successfully!")
-        except Exception as e:
-            st.error(f"Error reading pasted data: {e}. Make sure it's tab-separated.")
-            st.stop()
 
-# If no data loaded yet
-if df is None:
-    st.info("Upload a CSV/TSV file or paste TSV data in the sidebar to begin.")
-    st.stop()
 
-# Basic cleaning
+
+# -------------------------- Data Cleaning --------------------------
+# Make a copy to avoid warnings
+df = df.copy()
+
+# Standardize common column names (case-insensitive match)
+df.columns = df.columns.str.strip()
+col_map = {
+    'product_name': 'name',
+    'productname': 'name',
+    'item': 'name',
+    'price': 'price',
+    'sales_volume': 'Sales Volume',
+    'salesvolume': 'Sales Volume',
+    'units_sold': 'Sales Volume',
+    'unitssold': 'Sales Volume',
+    'quantity': 'Sales Volume',
+    'revenue': 'Revenue',
+    'promotion': 'Promotion',
+    'product_position': 'Product Position',
+    'position': 'Product Position',
+    'seasonal': 'Seasonal',
+    'section': 'section',
+    'gender': 'section',
+    'season': 'season',
+    'material': 'material',
+    'fabric': 'material'
+}
+
+for old, new in col_map.items():
+    for col in df.columns:
+        if col.lower() == old:
+            df.rename(columns={col: new}, inplace=True)
+
+# Convert price and sales volume
 df['price'] = pd.to_numeric(df['price'], errors='coerce')
-df['Sales Volume'] = pd.to_numeric(df['Sales Volume'], errors='coerce')
+if 'Sales Volume' not in df.columns:
+    possible_sales_cols = ['units_sold', 'quantity', 'sales_volume', 'sales', 'units']
+    for col in possible_sales_cols:
+        if col in df.columns.str.lower():
+            df['Sales Volume'] = pd.to_numeric(df[df.columns[df.columns.str.lower() == col].iloc[0]], errors='coerce')
+            break
 
-# Drop rows where critical numeric columns failed to convert
-df = df.dropna(subset=['price', 'Sales Volume'])
+df['Sales Volume'] = pd.to_numeric(df.get('Sales Volume', 0), errors='coerce')
+
+# Drop rows with no price or sales (critical)
+df.dropna(subset=['price', 'Sales Volume'], inplace=True)
 
 # Calculate Revenue
 df['Revenue'] = df['price'] * df['Sales Volume']
 
-# Sidebar filters
+# Fill missing categorical values
+cat_cols = ['Promotion', 'Product Position', 'Seasonal', 'section', 'season', 'material', 'name']
+for col in cat_cols:
+    if col in df.columns:
+        df[col] = df[col].fillna("Unknown").astype(str)
+    else:
+        df[col] = "Unknown"
+
+# Ensure 'name' exists
+if 'name' not in df.columns:
+    df['name'] = df.get('product_name', 'Product ' + df.index.astype(str))
+
+# -------------------------- Sidebar Filters --------------------------
 st.sidebar.header("Filters")
 
-# Ensure categorical columns exist and handle missing values
-categorical_cols = ['Promotion', 'Product Position', 'Seasonal', 'section', 'season', 'material']
-for col in categorical_cols:
-    if col not in df.columns:
-        df[col] = "Unknown"
-    df[col] = df[col].fillna("Unknown").astype(str)
+# Get unique values safely
+def get_unique(col):
+    return sorted([x for x in df[col].unique() if pd.notna(x)])
 
-# Multi-select filters with safe defaults
-promotion = st.sidebar.multiselect(
-    "Promotion", 
-    options=sorted(df['Promotion'].unique()), 
-    default=sorted(df['Promotion'].unique())
+promotion_opts = get_unique('Promotion')
+position_opts = get_unique('Product Position')
+seasonal_opts = get_unique('Seasonal')
+section_opts = get_unique('section')
+season_opts = get_unique('season')
+material_opts = get_unique('material')
+
+promotion = st.sidebar.multiselect("Promotion", options=promotion_opts, default=promotion_opts)
+position = st.sidebar.multiselect("Product Position", options=position_opts, default=position_opts)
+seasonal = st.sidebar.multiselect("Seasonal", options=seasonal_opts, default=seasonal_opts)
+section = st.sidebar.multiselect("Section (Gender)", options=section_opts, default=section_opts)
+season = st.sidebar.multiselect("Season", options=season_opts, default=season_opts)
+material = st.sidebar.multiselect("Material", options=material_opts, default=material_opts)
+
+# Price range
+price_min, price_max = float(df['price'].min()), float(df['price'].max())
+price_range = st.sidebar.slider(
+    "Price Range ($)",
+    min_value=price_min,
+    max_value=price_max,
+    value=(price_min, price_max),
+    step=1.0
 )
 
-position = st.sidebar.multiselect(
-    "Product Position", 
-    options=sorted(df['Product Position'].unique()), 
-    default=sorted(df['Product Position'].unique())
-)
-
-seasonal = st.sidebar.multiselect(
-    "Seasonal", 
-    options=sorted(df['Seasonal'].unique()), 
-    default=sorted(df['Seasonal'].unique())
-)
-
-section = st.sidebar.multiselect(
-    "Section (Gender)", 
-    options=sorted(df['section'].unique()), 
-    default=sorted(df['section'].unique())
-)
-
-season = st.sidebar.multiselect(
-    "Season", 
-    options=sorted(df['season'].unique()), 
-    default=sorted(df['season'].unique())
-)
-
-material = st.sidebar.multiselect(
-    "Material", 
-    options=sorted(df['material'].unique()), 
-    default=sorted(df['material'].unique())
-)
-
-# Price range slider (only if price has valid values)
-if df['price'].nunique() > 0:
-    price_min = float(df['price'].min())
-    price_max = float(df['price'].max())
-    price_range = st.sidebar.slider(
-        "Price Range", 
-        min_value=price_min, 
-        max_value=price_max, 
-        value=(price_min, price_max)
-    )
-else:
-    price_range = (0, 1000)  # fallback
-    st.sidebar.warning("No valid price data found.")
-
-# Apply filters
+# Apply all filters
 filtered_df = df[
     (df['Promotion'].isin(promotion)) &
     (df['Product Position'].isin(position)) &
@@ -129,44 +138,35 @@ filtered_df = df[
     (df['price'].between(price_range[0], price_range[1]))
 ].copy()
 
-# Main dashboard metrics
-st.markdown("### Key Metrics")
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Total Products", len(filtered_df))
-with col2:
-    st.metric("Total Sales Volume", f"{filtered_df['Sales Volume'].sum():,}")
-with col3:
-    total_rev = filtered_df['Revenue'].sum()
-    st.metric("Total Revenue", f"${total_rev:,.0f}")
-with col4:
-    avg_price = filtered_df['price'].mean()
-    st.metric("Average Price", f"${avg_price:.2f}" if pd.notna(avg_price) else "N/A")
+# -------------------------- Dashboard Metrics --------------------------
+st.markdown("## Key Metrics")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Total Products", f"{len(filtered_df):,}")
+c2.metric("Total Units Sold", f"{filtered_df['Sales Volume'].sum():,}")
+c3.metric("Total Revenue", f"${filtered_df['Revenue'].sum():,.0f}")
+c4.metric("Average Price", f"${filtered_df['price'].mean():.2f}")
 
 st.markdown("---")
 
-# Charts
+# -------------------------- Charts --------------------------
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Sales Volume by Product Position")
-    pos_sales = filtered_df.groupby('Product Position')['Sales Volume'].sum().sort_values(ascending=False).reset_index()
-    fig1 = px.bar(pos_sales, x='Product Position', y='Sales Volume', 
-                  color='Product Position', text='Sales Volume',
-                  color_discrete_sequence=px.colors.qualitative.Set2)
+    pos_data = filtered_df.groupby('Product Position')['Sales Volume'].sum().sort_values(ascending=False)
+    fig1 = px.bar(x=pos_data.index, y=pos_data.values, text=pos_data.values,
+                  color=pos_data.index, labels={'x': 'Position', 'y': 'Units Sold'})
     fig1.update_traces(textposition='outside')
     fig1.update_layout(showlegend=False)
     st.plotly_chart(fig1, use_container_width=True)
 
 with col2:
     st.subheader("Revenue Share by Season")
-    season_rev = filtered_df.groupby('season')['Revenue'].sum().reset_index()
-    if not season_rev.empty:
-        fig2 = px.pie(season_rev, values='Revenue', names='season', 
+    season_data = filtered_df.groupby('season')['Revenue'].sum()
+    if not season_data.empty:
+        fig2 = px.pie(values=season_data.values, names=season_data.index,
                       color_discrete_sequence=px.colors.sequential.Plasma)
         st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.write("No data for pie chart.")
 
 st.markdown("---")
 
@@ -174,40 +174,32 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Top 10 Best-Selling Products")
-    top10 = filtered_df.sort_values('Sales Volume', ascending=False).head(10)
-    if not top10.empty:
-        fig3 = px.bar(top10, x='name', y='Sales Volume', color='price',
-                      hover_data=['Product Position', 'Promotion', 'section', 'season'],
-                      text='Sales Volume', color_continuous_scale='Viridis')
-        fig3.update_layout(xaxis_title="Product Name", yaxis_title="Units Sold")
-        fig3.update_traces(textposition='outside')
-        st.plotly_chart(fig3, use_container_width=True)
-    else:
-        st.write("No data to display.")
+    top10 = filtered_df.nlargest(10, 'Sales Volume')
+    fig3 = px.bar(top10, x='name', y='Sales Volume', color='price',
+                  text='Sales Volume', hover_data=['section', 'Promotion'])
+    fig3.update_xaxes(tickangle=45)
+    fig3.update_traces(textposition='outside')
+    st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
-    st.subheader("Price vs Sales Volume (Bubble Size = Revenue)")
-    if not filtered_df.empty:
-        fig4 = px.scatter(filtered_df, x='price', y='Sales Volume', size='Revenue',
-                          color='Promotion', hover_name='name',
-                          hover_data=['section', 'season', 'material', 'Product Position'],
-                          size_max=60)
-        fig4.update_layout(xaxis_title="Price (USD)", yaxis_title="Units Sold")
-        st.plotly_chart(fig4, use_container_width=True)
-    else:
-        st.write("No data for scatter plot.")
+    st.subheader("Price vs Sales Volume (Size = Revenue)")
+    fig4 = px.scatter(filtered_df, x='price', y='Sales Volume',
+                      size='Revenue', color='Promotion',
+                      hover_name='name', hover_data=['section', 'season', 'material'],
+                      size_max=60)
+    fig4.update_layout(xaxis_title="Price ($)", yaxis_title="Units Sold")
+    st.plotly_chart(fig4, use_container_width=True)
 
+# -------------------------- Data Table & Export --------------------------
 st.markdown("---")
+st.subheader(f"Filtered Data Table ({len(filtered_df):,} rows)")
+st.dataframe(filtered_df.reset_index(drop=True), use_container_width=True, height=400)
 
-# Detailed table
-st.subheader("Filtered Data Table")
-st.dataframe(filtered_df.reset_index(drop=True), use_container_width=True)
-
-# Download button
-csv_tsv = filtered_df.to_csv(index=False, sep='\t')
 st.download_button(
-    label="Download filtered data as TSV",
-    data=csv_tsv,
-    file_name="filtered_zara_sales.tsv",
-    mime="text/tab-separated-values"
+    label="Download Filtered Data as CSV",
+    data=filtered_df.to_csv(index=False),
+    file_name=f"zara_filtered_sales_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+    mime="text/csv"
 )
+
+st.success("Dashboard ready! Your full dataset is loaded and interactive.")
