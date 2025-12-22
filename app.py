@@ -183,7 +183,7 @@ with col1:
 
 with col2:
     st.subheader("Price vs Sales Volume (Size = Revenue)")
-    fig4 = px.scatter(filtered_df, x='price', y='Sales Volume',
+    fig4 = px.line(filtered_df, x='price', y='Sales Volume',
                       size='Revenue', color='Promotion',
                       hover_name='name', hover_data=['section', 'season', 'material'],
                       size_max=60)
