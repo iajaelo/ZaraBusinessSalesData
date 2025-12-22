@@ -175,7 +175,7 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("Top 10 Best-Selling Products")
     top10 = filtered_df.nlargest(10, 'Sales Volume')
-    fig3 = px.bubble(top10, x='name', y='Sales Volume', color='price',
+    fig3 = px.line(top10, x='name', y='Sales Volume', color='price',
                   text='Sales Volume', hover_data=['section', 'Promotion'])
     fig3.update_xaxes(tickangle=45)
     fig3.update_traces(textposition='outside')
