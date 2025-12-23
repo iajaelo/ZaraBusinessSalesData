@@ -193,13 +193,14 @@ with col2:
         hover_name='name', 
         hover_data=['section', 'season', 'material'],
         size_max=40,
+
         # Adding marginal plots makes distribution clear at a glance
         marginal_x="histogram", 
         marginal_y="violin",
         template="plotly_white"
     )
 
-# Refining the look and feel
+    # Refining the look and feel
     fig4.update_layout(
         xaxis_title="Price ($)", 
         yaxis_title="Units Sold",
@@ -211,20 +212,19 @@ with col2:
 st.markdown("---")
 
 
-"""
-with col2:
-    st.subheader("Price vs Sales Volume (Size = Revenue)")
-    fig4 = px.scatter(filtered_df, x='price', y='Sales Volume',
-                      size='Revenue', color='Promotion',
-                      hover_name='name', hover_data=['section', 'season', 'material'],
-                      size_max=60)
-    fig4.update_layout(xaxis_title="Price ($)", yaxis_title="Units Sold")
-    st.plotly_chart(fig4, use_container_width=True)
+# -------------------------- GRAPH: Price vs Sales Volume --------------------------
+# with col2:
+#   st.subheader("Price vs Sales Volume (Size = Revenue)")
+#   fig4 = px.scatter(filtered_df, x='price', y='Sales Volume',
+#                       size='Revenue', color='Promotion',
+#                       hover_name='name', hover_data=['section', 'season', 'material'],
+#                       size_max=60)
+#   fig4.update_layout(xaxis_title="Price ($)", yaxis_title="Units Sold")
+#   st.plotly_chart(fig4, use_container_width=True)
+
+# st.markdown("---") 
 
 
-st.markdown("---") 
-
-"""
 
 # -------------------------- GRAPH: Origin Country Performance --------------------------
 st.subheader("Which Countries Produce the Best Sellers?")
