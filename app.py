@@ -182,12 +182,30 @@ with col1:
     st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
-    st.subheader("Revenue by Material Type")
-    material_data = filtered_df.groupby('material')['Revenue'].sum().sort_values(ascending=False)
-    fig4 = px.bar(x=material_data.index, y=material_data.values, text=material_data.values,
-                  color=material_data.index, labels={'x': 'Material', 'y': 'Revenue'})
-    fig4.update_traces(textposition='outside')
-    fig4.update_layout(showlegend=False)
+    st.subheader("Price Sensitivity & Sales Distribution")
+    # Create a more informative scatter plot with marginal distributions
+    fig4 = px.scatter(
+        filtered_df, 
+        x='price', 
+        y='Sales Volume',
+        size='Revenue', 
+        color='Promotion',
+        hover_name='name', 
+        hover_data=['section', 'season', 'material'],
+        size_max=40,
+        # Adding marginal plots makes distribution clear at a glance
+        marginal_x="histogram", 
+        marginal_y="violin",
+        template="plotly_white"
+    )
+
+# Refining the look and feel
+    fig4.update_layout(
+        xaxis_title="Price ($)", 
+        yaxis_title="Units Sold",
+        legend_title="Promotion Active",
+        hovermode="closest"
+    )
     st.plotly_chart(fig4, use_container_width=True)
 
 st.markdown("---")
