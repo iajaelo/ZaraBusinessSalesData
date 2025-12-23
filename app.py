@@ -182,6 +182,19 @@ with col1:
     st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
+    st.subheader("Revenue by Material Type")
+    material_data = filtered_df.groupby('material')['Revenue'].sum().sort_values(ascending=False)
+    fig4 = px.bar(x=material_data.index, y=material_data.values, text=material_data.values,
+                  color=material_data.index, labels={'x': 'Material', 'y': 'Revenue'})
+    fig4.update_traces(textposition='outside')
+    fig4.update_layout(showlegend=False)
+    st.plotly_chart(fig4, use_container_width=True)
+
+st.markdown("---")
+
+
+"""
+with col2:
     st.subheader("Price vs Sales Volume (Size = Revenue)")
     fig4 = px.scatter(filtered_df, x='price', y='Sales Volume',
                       size='Revenue', color='Promotion',
@@ -192,6 +205,8 @@ with col2:
 
 
 st.markdown("---") 
+
+"""
 
 # -------------------------- GRAPH: Origin Country Performance --------------------------
 st.subheader("Which Countries Produce the Best Sellers?")
